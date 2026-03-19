@@ -196,7 +196,7 @@ static void omv_init()
 #endif
 }
 
-static void DrawDetectBox(
+static int DrawDetectBox(
     const std::vector<arm::app::yolov8n_od::DetectionResult> &results,
     image_t *drawImg,
     std::vector<std::string> &labels
@@ -222,6 +222,8 @@ static void DrawDetectBox(
     sprintf(countText, "People: %d", personCount);
     // Draw in RED at the top-left (10, 10)
     imlib_draw_string(drawImg, 10, 10, countText, COLOR_R5_G6_B5_TO_RGB565(31, 0, 0), 2, 0, 0, false, false, false, false, 0, false, false);
+
+    return personCount;
 }
 
 static int32_t PrepareModelToHyperRAM(void)
@@ -407,7 +409,8 @@ int main()
     pmu_reset_counters();
 #endif
 
-#define EACH_PERF_SEC 5
+#define EACH_PERF_SEC 1
+int g_currentPersonCount = 0; // persistent state between frames
     uint64_t u64PerfCycle;
     uint64_t u64PerfFrames = 0;
 
@@ -541,12 +544,16 @@ int main()
 #if defined(__PROFILE__)
 				u64StartCycle = pmu_get_systick_Count();
 #endif
-				DrawDetectBox(infFramebuf->results, &infFramebuf->frameImage, labels);
+				g_currentPersonCount = DrawDetectBox(infFramebuf->results, &infFramebuf->frameImage, labels);
 #if defined(__PROFILE__)
 				u64EndCycle = pmu_get_systick_Count();
 				info("draw box cycles %llu \n", (u64EndCycle - u64StartCycle));
 #endif
 			}
+            else 
+            {
+                g_currentPersonCount = 0; // reset for empty frames
+            }
 
             //display result image
 #if defined (__USE_DISPLAY__)
@@ -619,7 +626,7 @@ int main()
             {
                 info("Total inference rate: %llu\n", u64PerfFrames / EACH_PERF_SEC);
 #if defined (__USE_DISPLAY__)
-                sprintf(szDisplayText, "Frame Rate %llu", u64PerfFrames / EACH_PERF_SEC);
+                sprintf(szDisplayText, "FPS: %llu | People: %d", u64PerfFrames / EACH_PERF_SEC, g_currentPersonCount);
                 //sprintf(szDisplayText,"Time %llu",(uint64_t) pmu_get_systick_Count() / (uint64_t)SystemCoreClock);
                 //info("Running %s sec \n", szDisplayText);
 
