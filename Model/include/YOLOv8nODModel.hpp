@@ -5,14 +5,14 @@
  *
  * @copyright SPDX-License-Identifier: Apache-2.0
  * @copyright Copyright (C) 2024 Nuvoton Technology Corp. All rights reserved.
- ******************************************************************************/
+ * ******************************************************************************/
 #ifndef _YOLOV8N_OD_MODEL_HPP_
 #define _YOLOV8N_OD_MODEL_HPP_
 
 #include "Model.hpp"
 
 #define YOLOV8_OD_INPUT_TENSOR	(192)	//256,224,192
-#define YOLOV8N_OD_CLASS		(80)	//coco dataset
+#define YOLOV8N_OD_CLASS		(1)	    //specialized person counting
 
 namespace arm
 {

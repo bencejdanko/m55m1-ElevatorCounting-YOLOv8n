@@ -60,22 +60,29 @@ Then train:
 
 ```bash
 # train
-python dg_train.py --model-cfg relu6-yolov8.yaml --data coco8.yaml --imgsz 320 --weights yolov8n.pt --epochs 3 --device cpu
+python dg_train.py --model-cfg relu6-yolov8.yaml --data /home/bence/datasets/top-down-people/data.yaml --imgsz 192 --weights yolov8n.pt --epochs 3 --device cpu
 
 # test
-# python dg_val.py --weights ./runs/train/exp2/weights/best.pt --data coco8.yaml --img 320 --device cpu
+# python dg_val.py --weights ./runs/train/exp2/weights/best.path --data /home/bence/datasets/top-down-people/data.yaml --img 192 --device cpu
 
-python nu_export_tflite_int8.py --format onnx --weights ./runs/train/exp3/weights/best.pt --img 320
+# we train 192x192
+# update exp{#} here
+python nu_export_tflite_int8.py --format onnx --weights ./runs/train/exp5/weights/best.pt --img 192
 
+# Generate calibration from dataset
 python generate_calib_data.py \
-  --img-size 320 320 \
+  --img-size 192 192 \
   --n-img 4 \
-  -o calib_data_320_n8_rgb.npy \
-  --img-dir /home/bence/datasets/coco8/images/train
-  
-onnx2tf -i runs/train/exp2/weights/best.onnx \
+  -o calib_data_192_n4_rgb.npy \
+  --img-dir /home/bence/datasets/top-down-people/train
+
+# clear out old saved models
+rm -rf saved_model
+
+# generate new model
+onnx2tf -i runs/train/exp5/weights/best.onnx \
   -oiqt \
-  -cind images calib_data_320_n8_rgb.npy \
+  -cind images calib_data_192_n4_rgb.npy \
   "[[[[0,0,0]]]]" "[[[[1,1,1]]]]"
 
 ls saved_model
@@ -88,8 +95,44 @@ vela best_integer_quant.tflite \
     --accelerator-config ethos-u55-128 \
     --output-dir . \
     --optimise Performance
-    
-sudo apt install xxd
-xxd -i best_integer_quant_vela.tflite > best_integer_quant_vela.cc
+
+# if you want custom cc   
+# sudo apt install xxd
+# xxd -i best_integer_quant_vela.tflite > best_integer_quant_vela.cc
+
+# move replace the current KEIL model
+cp /home/bence/m55m1-ElevatorCounting-YOLOv8n/yolov8_ultralytics/vela/generated/best_integer_quant_vela.tflite /home/bence/m55m1-ElevatorCounting-YOLOv8n/Model/YOLOv8n-od.tflite
+
 ```
 
+## datasets
+
+https://app.roboflow.com/bences-workspace-zmeqo/top-down-people-mmue8-ogvbu
+
+## Running inference
+
+> [!WARNING]
+> You must install additional libraries
+
+Use `python install.py` to fetch the needed libraries, `Library` and `ThirdParty`.
+
+install script from https://github.com/OpenNuvoton/ML_M55M1_SampleCode
+
+Once you install, you'll get a `Library` and `ThirdParty` scripts.
+
+You must configure their paths in `KEIL/ObjectDetection.csolution.yml`. By default they are:
+
+```yaml
+    - BSP_PATH: "C:/Library"
+    - TP_PATH: "C:/ThirdParty"
+```
+
+## Shortcuts
+
+```bash
+rm -rf /mnt/c/Users/bence/m55m1-ElevatorCounting-YOLOv8n/
+
+# copying wsl to windows
+# to use vscode cmis plugin with keil
+cp -r m55m1-ElevatorCounting-YOLOv8n/ /mnt/c/Users/bence
+```

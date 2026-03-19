@@ -49,7 +49,7 @@
 
 #define MODEL_AT_HYPERRAM_ADDR (0x82400000)
 
-#define OD_PRESENCE_THRESHOLD  				(0.5)
+#define OD_PRESENCE_THRESHOLD  				(0.3)
 
 typedef enum
 {
@@ -203,17 +203,25 @@ static void DrawDetectBox(
 )
 {
 	arm::app::yolov8n_od::DetectionResult detectBox;
-	int lineColor = COLOR_R5_G6_B5_TO_RGB565(0,COLOR_G6_MAX, 0);	
 	int boxSize = results.size();
+    int personCount = 0;
 
 	for(int p = 0; p < boxSize; p ++)
 	{
 		detectBox = results[p];
-		imlib_draw_rectangle(drawImg, detectBox.m_detectBox.x, detectBox.m_detectBox.y, detectBox.m_detectBox.w, detectBox.m_detectBox.h, COLOR_B5_MAX, 2, false);
+        if (detectBox.m_detectBox.cls == 0) {
+            personCount++;
+		    imlib_draw_rectangle(drawImg, detectBox.m_detectBox.x, detectBox.m_detectBox.y, detectBox.m_detectBox.w, detectBox.m_detectBox.h, COLOR_B5_MAX, 2, false);
 
-        imlib_draw_string(drawImg, detectBox.m_detectBox.x, detectBox.m_detectBox.y - 16, labels[detectBox.m_detectBox.cls].c_str(), COLOR_B5_MAX, 2, 0, 0, false,
-                          false, false, false, 0, false, false);
+            imlib_draw_string(drawImg, detectBox.m_detectBox.x, detectBox.m_detectBox.y - 16, labels[detectBox.m_detectBox.cls].c_str(), COLOR_B5_MAX, 2, 0, 0, false,
+                              false, false, false, 0, false, false);
+        }
 	}
+
+    char countText[32];
+    sprintf(countText, "People: %d", personCount);
+    // Draw in RED at the top-left (10, 10)
+    imlib_draw_string(drawImg, 10, 10, countText, COLOR_R5_G6_B5_TO_RGB565(31, 0, 0), 2, 0, 0, false, false, false, false, 0, false, false);
 }
 
 static int32_t PrepareModelToHyperRAM(void)
