@@ -6,6 +6,10 @@ Using the Nuvoton M55M1 and its Ethos-U55 NPU, the system runs optimized ML mode
 
 100% data privacy by keeping all video processing local. Success is measured by achieving >95% accuracy and a smooth 15+ FPS, providing the speed and reliability needed for industrial building safety.
 
+## Dataset
+
+The dataset used is located at https://huggingface.co/datasets/bdanko/overhead-person-detection. To see how it was prepared, refer to https://github.com/bencejdanko/prepare-overhead-person-detection.
+
 ## Performance
   
 | Metric | Value | Description |
