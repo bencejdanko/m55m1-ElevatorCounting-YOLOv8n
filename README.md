@@ -59,22 +59,24 @@ python -m pip install .[export]
 Then train:
 
 ```bash
-# train
-python dg_train.py --model-cfg relu6-yolov8.yaml --data /home/bence/datasets/top-down-people/data.yaml --imgsz 192 --weights yolov8n.pt --epochs 3 --device cpu
+# 1. Download and convert HuggingFace dataset to local YOLO format (90/10 Split)
+# Saved to datasets/overhead_monochrome/
+python download_hf_dataset.py --dataset bdanko/overhead-person-detection --out-dir datasets/overhead_monochrome
 
-# test
-# python dg_val.py --weights ./runs/train/exp2/weights/best.path --data /home/bence/datasets/top-down-people/data.yaml --img 192 --device cpu
+# 2. Train model using 192x192 resolution
+python dg_train.py --model-cfg relu6-yolov8.yaml --data datasets/overhead_monochrome/data.yaml --imgsz 192 --weights yolov8n.pt --epochs 3 --device cpu
 
-# we train 192x192
-# update exp{#} here
+# 3. Export to tflite using onnx intermediary
+# Update exp{#} to your highest run folder
 python nu_export_tflite_int8.py --format onnx --weights ./runs/train/exp5/weights/best.pt --img 192
 
-# Generate calibration from dataset
+# 4. Generate calibration for tflite quantization from local monochrome dataset
 python generate_calib_data.py \
   --img-size 192 192 \
   --n-img 4 \
   -o calib_data_192_n4_rgb.npy \
-  --img-dir /home/bence/datasets/top-down-people/train
+  --img-dir datasets/overhead_monochrome/train/images
+
 
 # clear out old saved models
 rm -rf saved_model
@@ -103,11 +105,27 @@ vela best_integer_quant.tflite \
 # move replace the current KEIL model
 cp /home/bence/m55m1-ElevatorCounting-YOLOv8n/yolov8_ultralytics/vela/generated/best_integer_quant_vela.tflite /home/bence/m55m1-ElevatorCounting-YOLOv8n/Model/YOLOv8n-od.tflite
 
-```
+## Datasets
 
-## datasets
+The dataset is hosted on HuggingFace: [**`bdanko/overhead-person-detection`**](https://huggingface.co/datasets/bdanko/overhead-person-detection).
 
-https://app.roboflow.com/bences-workspace-zmeqo/top-down-people-mmue8-ogvbu
+### Data Format & Preprocessing
+
+The images in this dataset have already been processed to save processing time on-device:
+- **Dimensions**: Constant **192x192** pixels (letterboxed).
+- **Color space**: **Monochrome (Grayscale)** (1 channel).
+
+To feed this into YOLO for training, use the downloaded script.
+It loads dataset splits and transforms the absolute coordinate bboxes into normalized YOLO label structures:
+  ```text
+  <class_id> <x_center> <y_center> <width> <height>
+  ```
+- **Class ID**: `0` for `person`.
+
+
+
+
+
 
 ## Running inference
 

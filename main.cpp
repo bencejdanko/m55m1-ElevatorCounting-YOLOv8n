@@ -424,7 +424,7 @@ int g_currentPersonCount = 0; // persistent state between frames
 #if defined (__USE_CCAP__)
     //Setup image senosr
     ImageSensor_Init();
-    ImageSensor_Config(eIMAGE_FMT_RGB565, frameBuffer.w, frameBuffer.h, true);
+    ImageSensor_Config(eIMAGE_FMT_ONLY_Y, frameBuffer.w, frameBuffer.h, true);
 #endif
 
 #if defined (__USE_DISPLAY__)
@@ -471,7 +471,7 @@ int g_currentPersonCount = 0; // persistent state between frames
             resizeImg.w = inputImgCols;
             resizeImg.h = inputImgRows;
             resizeImg.data = (uint8_t *)inputTensor->data.data; //direct resize to input tensor buffer
-            resizeImg.pixfmt = PIXFORMAT_RGB888;
+            resizeImg.pixfmt = PIXFORMAT_GRAYSCALE;
 
 #if defined(__PROFILE__)
             u64StartCycle = pmu_get_systick_Count();
