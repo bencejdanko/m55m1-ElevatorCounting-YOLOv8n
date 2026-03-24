@@ -499,7 +499,8 @@ int g_currentPersonCount = 0; // persistent state between frames
 			    uint8_t g = req_data[i + 1];
 			    uint8_t b = req_data[i + 2];
 
-			    uint8_t gray_uint8 = (uint8_t)((r + g + b) / 3);
+                // FAST APPROX FOR DIV 3: sum * 85 >> 8
+			    uint8_t gray_uint8 = (r + g + b) * 85 >> 8;
 			    int8_t gray_int8 = static_cast<int8_t>(gray_uint8) - 128;
 
 			    signed_req_data[i]     = gray_int8;
@@ -572,27 +573,34 @@ int g_currentPersonCount = 0; // persistent state between frames
 
             // Process display image: grayscale center crop and black sides
             uint16_t *pixel_data = (uint16_t *)infFramebuf->frameImage.data;
+            
             for (int y = 0; y < 240; y++) {
-                for (int x = 0; x < 320; x++) {
-                    int idx = y * 320 + x;
-                    if (x < 40 || x >= 280) {
-                        pixel_data[idx] = 0; // Black
-                    } else {
-                        uint16_t p = pixel_data[idx];
-                        uint8_t r = (p >> 11) & 0x1F;
-                        uint8_t g = (p >> 5) & 0x3F;
-                        uint8_t b = p & 0x1F;
+                int row_idx = y * 320;
+                
+                // 1. Black out left side (x = 0 to 39)
+                for (int x = 0; x < 40; x++) {
+                    pixel_data[row_idx + x] = 0;
+                }
+                
+                // 2. Grayscale center region (x = 40 to 279)
+                for (int x = 40; x < 280; x++) {
+                    int idx = row_idx + x;
+                    uint16_t p = pixel_data[idx];
+                    
+                    uint8_t r = (p >> 11) & 0x1F;  // 5 bits
+                    uint8_t g = (p >> 5) & 0x3F;   // 6 bits
+                    uint8_t b = p & 0x1F;         // 5 bits
 
-                        // Normalize to 0-255 roughly (actual bit distributions)
-                        int r_byte = (r * 255) / 31;
-                        int g_byte = (g * 255) / 63;
-                        int b_byte = (b * 255) / 31;
+                    // Fast Grayscale scaling for 6-bit levels without division
+                    // (r<<1) and (b<<1) promote 5-bit to 6-bit depth
+                    uint8_t gray6 = ((r << 1) + g + (b << 1)) * 85 >> 8;
 
-                        uint8_t gray = (r_byte + g_byte + b_byte) / 3;
-
-                        // Repack to RGB565
-                        pixel_data[idx] = ((gray >> 3) << 11) | ((gray >> 2) << 5) | (gray >> 3);
-                    }
+                    pixel_data[idx] = ((gray6 >> 1) << 11) | (gray6 << 5) | (gray6 >> 1);
+                }
+                
+                // 3. Black out right side (x = 280 to 319)
+                for (int x = 280; x < 320; x++) {
+                    pixel_data[row_idx + x] = 0;
                 }
             }
 
