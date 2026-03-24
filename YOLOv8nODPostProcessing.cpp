@@ -228,7 +228,8 @@ void CalDetectionBox(
 
     scaleConf = ((TfLiteAffineQuantization *)(psConfidenceOutputTensor->quantization.params))->scale->data[0];
     zeroPointConf = ((TfLiteAffineQuantization *)(psConfidenceOutputTensor->quantization.params))->zero_point->data[0];
-    tensorSizeConf = psConfidenceOutputTensor->bytes;
+    // Count total items dimensionally instead of total bytes to support Float32/INT8 outputs transparently
+    tensorSizeConf = psConfidenceOutputTensor->dims->data[1] * psConfidenceOutputTensor->dims->data[2];
 
 	if((tensorSizeConf / YOLOV8N_OD_CLASS) != i32StrideTotalAnchors)
 	{
