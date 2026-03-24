@@ -51,4 +51,6 @@ You must configure their paths in `KEIL/ObjectDetection.csolution.yml`. By defau
     - TP_PATH: "C:/ThirdParty"
 ```
 
-## 
+## Loading the Model to SD
+
+The board has a microSD card you must physically load the model to at `"0:\\YOLOv8n-elevator-od.tflite"`.
