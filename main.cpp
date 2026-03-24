@@ -22,7 +22,7 @@
 #undef PI /* PI macro conflict with CMSIS/DSP */
 #include "NuMicro.h"
 
-#define __PROFILE__
+//#define __PROFILE__
 #define __USE_CCAP__
 #define __USE_DISPLAY__
 //#define __USE_UVC__
@@ -49,7 +49,7 @@
 
 #define MODEL_AT_HYPERRAM_ADDR (0x82400000)
 
-#define OD_PRESENCE_THRESHOLD  				(0.5)
+#define OD_PRESENCE_THRESHOLD  				(0.4)
 
 typedef enum
 {
@@ -461,28 +461,30 @@ int g_currentPersonCount = 0; // persistent state between frames
         if (fullFramebuf)
         {
             //resize full image to input tensor
+            // Letterbox logic
             image_t resizeImg;
-
             roi.x = 0;
             roi.y = 0;
-            roi.w = fullFramebuf->frameImage.w;
-            roi.h = fullFramebuf->frameImage.h;
+            roi.w = fullFramebuf->frameImage.w; // 320
+            roi.h = fullFramebuf->frameImage.h; // 240
 
-            //Center-Crop 240x240 for proportional sizing
-            resizeImg.w = inputImgCols;
-            resizeImg.h = inputImgRows;
-            resizeImg.data = (uint8_t *)inputTensor->data.data; //direct resize to input tensor buffer
+            resizeImg.w = 192;
+            resizeImg.h = 144; // 240 * 192 / 320 = 144
+            
+            // Offset the resize buffer by 24 rows
+            uint32_t offset = 24 * 192 * 3; 
+            resizeImg.data = (uint8_t *)inputTensor->data.data + offset;
             resizeImg.pixfmt = PIXFORMAT_RGB888;
-
-            roi.w = fullFramebuf->frameImage.h; // ROI width = 240
-            roi.h = fullFramebuf->frameImage.h; // ROI height = 240
-            roi.x = (fullFramebuf->frameImage.w - roi.w) / 2; // Center offset: (320-240)/2 = 40
-            roi.y = 0;
 
 #if defined(__PROFILE__)
             u64StartCycle = pmu_get_systick_Count();
 #endif
             imlib_nvt_scale(&fullFramebuf->frameImage, &resizeImg, &roi);
+
+            // Pad top and bottom with zero (Black)
+            uint8_t *req_data_pad = static_cast<uint8_t *>(inputTensor->data.data);
+            memset(req_data_pad, 0, offset); // Top pad
+            memset(req_data_pad + (168 * 192 * 3), 0, offset); // Bottom pad (24+144 = 168 rows)
 
 #if defined(__PROFILE__)
             u64EndCycle = pmu_get_systick_Count();
@@ -539,13 +541,17 @@ int g_currentPersonCount = 0; // persistent state between frames
 			postProcess.RunPostProcessing(
 				inputImgCols,
 				inputImgRows,
-				240, // cropped source height as 1:1 scale base
-				240, // cropped source width as 1:1 scale base
+				inputImgRows, // 1:1 scale so output is in 192px canvas coords
+				inputImgCols,
 				infFramebuf->results);
 
-			// Shift coordinates back to display offsets (x_offset = 40)
+			// Undo Letterbox: Scale back to 320x240 and remove pad
 			for (auto &det : infFramebuf->results) {
-				det.m_detectBox.x += 40;
+				det.m_detectBox.y -= 24; 
+				det.m_detectBox.x = (det.m_detectBox.x * 5) / 3; // 320/192
+				det.m_detectBox.y = (det.m_detectBox.y * 5) / 3;
+				det.m_detectBox.w = (det.m_detectBox.w * 5) / 3;
+				det.m_detectBox.h = (det.m_detectBox.h * 5) / 3;
 			}
 
 #if defined(__PROFILE__)
