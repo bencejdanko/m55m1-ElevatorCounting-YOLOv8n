@@ -22,7 +22,7 @@
 #undef PI /* PI macro conflict with CMSIS/DSP */
 #include "NuMicro.h"
 
-//#define __PROFILE__
+#define __PROFILE__
 #define __USE_CCAP__
 #define __USE_DISPLAY__
 //#define __USE_UVC__
@@ -49,7 +49,7 @@
 
 #define MODEL_AT_HYPERRAM_ADDR (0x82400000)
 
-#define OD_PRESENCE_THRESHOLD  				(0.3)
+#define OD_PRESENCE_THRESHOLD  				(0.5)
 
 typedef enum
 {
