@@ -51,13 +51,4 @@ You must configure their paths in `KEIL/ObjectDetection.csolution.yml`. By defau
     - TP_PATH: "C:/ThirdParty"
 ```
 
-## Flashing the model 
-
-### On WSL
-
-```bash
-# mount the drive
-sudo mkdir -p /mnt/d
-sudo mount -t drvfs D: /mnt/d
-```
-
+## 

@@ -228,7 +228,7 @@ static int DrawDetectBox(
 
 static int32_t PrepareModelToHyperRAM(void)
 {
-#define MODEL_FILE "0:\\YOLOv8n-od.tflite"
+#define MODEL_FILE "0:\\YOLOv8n-elevator-od.tflite"
 #define EACH_READ_SIZE 512
 	
     TCHAR sd_path[] = { '0', ':', 0 };    /* SD drive started from 0 */	
