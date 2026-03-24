@@ -468,10 +468,16 @@ int g_currentPersonCount = 0; // persistent state between frames
             roi.w = fullFramebuf->frameImage.w;
             roi.h = fullFramebuf->frameImage.h;
 
+            //Center-Crop 240x240 for proportional sizing
             resizeImg.w = inputImgCols;
             resizeImg.h = inputImgRows;
             resizeImg.data = (uint8_t *)inputTensor->data.data; //direct resize to input tensor buffer
             resizeImg.pixfmt = PIXFORMAT_RGB888;
+
+            roi.w = fullFramebuf->frameImage.h; // ROI width = 240
+            roi.h = fullFramebuf->frameImage.h; // ROI height = 240
+            roi.x = (fullFramebuf->frameImage.w - roi.w) / 2; // Center offset: (320-240)/2 = 40
+            roi.y = 0;
 
 #if defined(__PROFILE__)
             u64StartCycle = pmu_get_systick_Count();
@@ -483,18 +489,22 @@ int g_currentPersonCount = 0; // persistent state between frames
             info("resize cycles %llu \n", (u64EndCycle - u64StartCycle));
 #endif
 
-#if defined(__PROFILE__)
-            u64StartCycle = pmu_get_systick_Count();
-#endif
-			//Quantize input tensor data
+			//Quantize input tensor data (and convert to monochrome in-place)
 			auto *req_data = static_cast<uint8_t *>(inputTensor->data.data);
 			auto *signed_req_data = static_cast<int8_t *>(inputTensor->data.data);
 
-			for (size_t i = 0; i < inputTensor->bytes; i++)
+			for (size_t i = 0; i < inputTensor->bytes; i += 3)
 			{
-//				auto i_data_int8 = static_cast<int8_t>(((static_cast<float>(req_data[i]) / 255.0f) / inQuantParams.scale) + inQuantParams.offset);
-//				signed_req_data[i] = std::min<int8_t>(INT8_MAX, std::max<int8_t>(i_data_int8, INT8_MIN));
-				signed_req_data[i] = static_cast<int8_t>(req_data[i]) - 128;
+			    uint8_t r = req_data[i];
+			    uint8_t g = req_data[i + 1];
+			    uint8_t b = req_data[i + 2];
+
+			    uint8_t gray_uint8 = (uint8_t)((r + g + b) / 3);
+			    int8_t gray_int8 = static_cast<int8_t>(gray_uint8) - 128;
+
+			    signed_req_data[i]     = gray_int8;
+			    signed_req_data[i + 1] = gray_int8;
+			    signed_req_data[i + 2] = gray_int8;
 			}
 
 #if defined(__PROFILE__)
@@ -528,9 +538,14 @@ int g_currentPersonCount = 0; // persistent state between frames
 			postProcess.RunPostProcessing(
 				inputImgCols,
 				inputImgRows,
-				infFramebuf->frameImage.w,
-				infFramebuf->frameImage.h,
+				240, // cropped source height as 1:1 scale base
+				240, // cropped source width as 1:1 scale base
 				infFramebuf->results);
+
+			// Shift coordinates back to display offsets (x_offset = 40)
+			for (auto &det : infFramebuf->results) {
+				det.m_detectBox.x += 40;
+			}
 
 #if defined(__PROFILE__)
 			u64EndCycle = pmu_get_systick_Count();
@@ -553,6 +568,32 @@ int g_currentPersonCount = 0; // persistent state between frames
             else 
             {
                 g_currentPersonCount = 0; // reset for empty frames
+            }
+
+            // Process display image: grayscale center crop and black sides
+            uint16_t *pixel_data = (uint16_t *)infFramebuf->frameImage.data;
+            for (int y = 0; y < 240; y++) {
+                for (int x = 0; x < 320; x++) {
+                    int idx = y * 320 + x;
+                    if (x < 40 || x >= 280) {
+                        pixel_data[idx] = 0; // Black
+                    } else {
+                        uint16_t p = pixel_data[idx];
+                        uint8_t r = (p >> 11) & 0x1F;
+                        uint8_t g = (p >> 5) & 0x3F;
+                        uint8_t b = p & 0x1F;
+
+                        // Normalize to 0-255 roughly (actual bit distributions)
+                        int r_byte = (r * 255) / 31;
+                        int g_byte = (g * 255) / 63;
+                        int b_byte = (b * 255) / 31;
+
+                        uint8_t gray = (r_byte + g_byte + b_byte) / 3;
+
+                        // Repack to RGB565
+                        pixel_data[idx] = ((gray >> 3) << 11) | ((gray >> 2) << 5) | (gray >> 3);
+                    }
+                }
             }
 
             //display result image
